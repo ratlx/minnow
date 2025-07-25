@@ -10,8 +10,8 @@ ByteStream::ByteStream( uint64_t capacity ) : capacity_( capacity )
 
 void Writer::push( string data )
 {
-  auto len = min( data.size(), capacity_ - buffer_.size() );
-  buffer_ += data.substr( 0, len );
+  auto len = min(data.size(), capacity_ - buffer_.size());
+  buffer_.append( data, 0, len );
   push_count_ += len;
 }
 
