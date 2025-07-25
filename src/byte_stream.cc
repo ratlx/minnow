@@ -10,7 +10,7 @@ ByteStream::ByteStream( uint64_t capacity ) : capacity_( capacity )
 
 void Writer::push( string data )
 {
-  auto len = min(data.size(), capacity_ - buffer_.size());
+  auto len = min( data.size(), capacity_ - buffer_.size() );
   buffer_.append( data, 0, len );
   push_count_ += len;
 }
@@ -56,7 +56,7 @@ bool Reader::is_finished() const
 
 uint64_t Reader::bytes_buffered() const
 {
-  return buffer_.size(); 
+  return buffer_.size();
 }
 
 uint64_t Reader::bytes_popped() const

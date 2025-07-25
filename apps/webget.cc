@@ -14,17 +14,20 @@ void get_URL( const string& host, const string& path )
   Address address { host, "http" };
   TCPSocket socket;
   socket.connect( address );
-  string request = "GET " + path + " HTTP/1.1\r\n"
-                   "Host: " + host + "\r\n"
-                   "Connection: close\r\n"
-                   "\r\n";
+  string request = "GET " + path
+                   + " HTTP/1.1\r\n"
+                     "Host: "
+                   + host
+                   + "\r\n"
+                     "Connection: close\r\n"
+                     "\r\n";
   socket.write( request );
   string response;
   while ( true ) {
     string buffer;
     socket.read( buffer );
     if ( buffer.empty() ) {
-      break; 
+      break;
     }
     response += buffer;
   }
