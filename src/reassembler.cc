@@ -45,17 +45,16 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
   // merge front
   if ( merge_back_it != buffer_.begin() ) {
     auto merge_front_it = prev( merge_back_it );
-    auto start = merge_front_it->first;
-    auto end = start + buffer_[start].size();
-    auto& str = merge_front_it->second;
+    auto& [start, str] = *merge_front_it;
+    auto end = start + str.size();
 
     // update back
     if ( end >= first_index ) {
       if (last_index > end) {
-        str.erase( first_index - start );
-        data.insert( 0, str );
-        buffer_.erase( merge_front_it );
+        str.append( data, end - first_index );
+        data = std::move( str );
         first_index = start;
+        buffer_.erase( merge_front_it );
       } else {
         return;
       }
@@ -65,12 +64,10 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
   // merge back
   // we should delete substrings from (cur_idx, merge_back_idx), because we've covered them
   while ( merge_back_it != buffer_.end() && merge_back_it->first <= last_index ) {
-    auto start = merge_back_it->first;
-    auto& str = merge_back_it->second;
+    auto& [start, str] = *merge_back_it;
     auto end = start + str.size();
     if ( end > last_index ) {
-      str.erase( 0, last_index - start );
-      data += str;
+      data.append( str, last_index - start );
       last_index = end;
     }
     merge_back_it = buffer_.erase( merge_back_it );
