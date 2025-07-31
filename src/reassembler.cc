@@ -25,7 +25,7 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
   auto last_index = first_index + data_len;
   if ( last_index > first_unassembled_index_ + writer().available_capacity() ) {
     last_index = first_unassembled_index_ + writer().available_capacity();
-    // compelety out of capacity
+    // compeletly out of capacity
     if ( last_index <= first_index ) {
       return;
     }
@@ -41,46 +41,28 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
     last_byte_inserted_ = true;
   }
 
-  // size_t cur_idx;
-  auto merge_front_it = end_index_.lower_bound( first_index );
+  auto merge_front_it = start_index_.upper_bound( first_index );
+  bool front_merged = false;
   // merge front
-  if ( merge_front_it != end_index_.end() ) {
-    auto old_start = *prev( start_index_.upper_bound( *merge_front_it ) );
-    auto old_end = *merge_front_it;
-    auto cur_start = old_start;
-    auto cur_end = old_end;
-    // update front
-    if ( first_index < old_start && last_index >= old_start ) {
-      auto str = std::move( buffer_[old_start] );
-      buffer_.erase( old_start );
-      str.insert( 0, data.substr( 0, old_start - first_index ) );
-
-      start_index_.erase( old_start );
-      start_index_.insert( first_index );
-      cur_start = first_index;
-      buffer_[first_index] = std::move( str );
-    }
+  if ( merge_front_it != start_index_.begin() ) {
+    --merge_front_it;
+    auto start = *merge_front_it;
+    auto end = start + buffer_[start].size();
 
     // update back
-    if ( last_index > old_end ) {
-      end_index_.erase( old_end );
-      end_index_.insert( last_index );
-      cur_end = last_index;
-      buffer_[cur_start] += data.substr( old_end - first_index );
+    if ( end >= first_index ) {
+      if (last_index > end) {
+        buffer_[start] += data.substr( end - first_index );
+        first_index = start;
+        front_merged = true;
+      } else {
+        return;
+      }
     }
+  }
 
-    // the substring is completely front of the cur_idx, we should insert it front
-    if ( last_index < old_start ) {
-      start_index_.insert( first_index );
-      end_index_.insert( last_index );
-      buffer_[first_index] = std::move( data );
-    } else {
-      first_index = cur_start;
-      last_index = cur_end;
-    }
-  } else {
+  if (!front_merged) {
     start_index_.insert( first_index );
-    end_index_.insert( last_index );
     buffer_[first_index] = std::move( data );
   }
 
@@ -92,14 +74,9 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
     auto end = start + buffer_[start].size();
     if ( end > last_index ) {
       buffer_[first_index] += buffer_[start].substr( last_index - start );
-      end_index_.erase( last_index );
       last_index = end;
     }
     merge_back_it = start_index_.erase( merge_back_it );
-    // may overlay
-    if ( end != last_index ) {
-      end_index_.erase( end );
-    }
     buffer_.erase( start );
   }
 
@@ -110,7 +87,6 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
 
     buffer_.erase( first_index );
     start_index_.erase( first_index );
-    end_index_.erase( last_index );
 
     if ( last_byte_inserted_ && buffer_.empty() ) {
       output_.writer().close();
