@@ -1,8 +1,7 @@
 #pragma once
 
-#include <set>
 #include <string>
-#include <unordered_map>
+#include <map>
 
 #include "byte_stream.hh"
 
@@ -47,8 +46,7 @@ public:
 
 private:
   ByteStream output_;
-  std::set<uint64_t> start_index_ {};
-  std::unordered_map<uint64_t, std::string> buffer_ {};
+  std::map<uint64_t, std::string> buffer_ {};
   uint64_t first_unassembled_index_ { 0 };
   bool last_byte_inserted_ { false };
 };
