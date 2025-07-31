@@ -41,10 +41,10 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
     last_byte_inserted_ = true;
   }
 
-  auto merge_front_it = buffer_.upper_bound( first_index );
+  auto merge_back_it = buffer_.upper_bound( first_index );
   // merge front
-  if ( merge_front_it != buffer_.begin() ) {
-    --merge_front_it;
+  if ( merge_back_it != buffer_.begin() ) {
+    auto merge_front_it = prev( merge_back_it );
     auto start = merge_front_it->first;
     auto end = start + buffer_[start].size();
     auto& str = merge_front_it->second;
@@ -64,13 +64,13 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
 
   // merge back
   // we should delete substrings from (cur_idx, merge_back_idx), because we've covered them
-  auto merge_back_it = buffer_.upper_bound( first_index );
   while ( merge_back_it != buffer_.end() && merge_back_it->first <= last_index ) {
     auto start = merge_back_it->first;
     auto& str = merge_back_it->second;
     auto end = start + str.size();
     if ( end > last_index ) {
-      data += str.substr( last_index - start );
+      str.erase( 0, last_index - start );
+      data += str;
       last_index = end;
     }
     merge_back_it = buffer_.erase( merge_back_it );
