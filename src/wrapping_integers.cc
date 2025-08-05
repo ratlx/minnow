@@ -5,14 +5,30 @@ using namespace std;
 
 Wrap32 Wrap32::wrap( uint64_t n, Wrap32 zero_point )
 {
-  // Your code here.
-  debug( "unimplemented wrap( {}, {} ) called", n, zero_point.raw_value_ );
-  return Wrap32 { 0 };
+  auto n32 = static_cast<uint32_t>( n );
+  return Wrap32 { zero_point + n32 };
 }
 
 uint64_t Wrap32::unwrap( Wrap32 zero_point, uint64_t checkpoint ) const
 {
-  // Your code here.
-  debug( "unimplemented unwrap( {}, {} ) called", zero_point.raw_value_, checkpoint );
-  return {};
+  uint64_t offset;
+  uint64_t m64 = UINT32_MAX + 1ULL;
+  if ( zero_point.raw_value_ > raw_value_ ) {
+    offset = m64 + raw_value_ - zero_point.raw_value_;
+  } else {
+    offset = raw_value_ - zero_point.raw_value_;
+  }
+  auto h32 = checkpoint & ( UINT64_MAX - UINT32_MAX );
+  auto l32 = checkpoint & UINT32_MAX;
+  if ( offset > l32 ) {
+    if ( h32 < m64 || offset - l32 < l32 + m64 - offset ) {
+      return h32 + offset;
+    }
+    return h32 - m64 + offset;
+  } else {
+    if ( l32 - offset <= offset + m64 - l32 ) {
+      return h32 + offset;
+    }
+    return h32 + m64 + offset;
+  }
 }

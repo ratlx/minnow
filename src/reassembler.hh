@@ -1,7 +1,7 @@
 #pragma once
 
-#include <string>
 #include <map>
+#include <string>
 
 #include "byte_stream.hh"
 
@@ -43,6 +43,12 @@ public:
 
   // Access output stream writer, but const-only (can't write from outside)
   const Writer& writer() const { return output_.writer(); }
+
+  uint64_t first_unassembled_index() const { return first_unassembled_index_; }
+
+  void bs_set_error() { output_.set_error(); }
+
+  bool bs_has_error() const { return output_.has_error(); }
 
 private:
   ByteStream output_;

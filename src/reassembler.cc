@@ -50,7 +50,7 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
 
     // update back
     if ( end >= first_index ) {
-      if (last_index > end) {
+      if ( last_index > end ) {
         str.append( data, end - first_index );
         data = std::move( str );
         first_index = start;
