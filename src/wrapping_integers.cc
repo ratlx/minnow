@@ -32,3 +32,13 @@ uint64_t Wrap32::unwrap( Wrap32 zero_point, uint64_t checkpoint ) const
     return h32 + m64 + offset;
   }
 }
+
+uint64_t Wrap32::offset( Wrap32 rhs ) const
+{
+  auto l = static_cast<uint64_t>( raw_value_ );
+  auto r = static_cast<uint64_t>( rhs.raw_value_ );
+  if ( l < r ) {
+    l += UINT32_MAX + 1ULL;
+  }
+  return l - r;
+}

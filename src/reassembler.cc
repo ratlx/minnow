@@ -23,6 +23,9 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
 
   auto data_len = data.length();
   auto last_index = first_index + data_len;
+  if ( last_index < first_index ) {
+    last_index = UINT64_MAX;
+  }
   if ( last_index > first_unassembled_index_ + writer().available_capacity() ) {
     last_index = first_unassembled_index_ + writer().available_capacity();
     // compeltely out of capacity
