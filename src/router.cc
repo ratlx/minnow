@@ -17,7 +17,7 @@ void Router::add_route( const uint32_t route_prefix,
                         const size_t interface_num )
 {
   if ( prefix_length > 32 ) {
-    throw invalid_argument( "prefix_length should be LE than" );
+    throw invalid_argument( "prefix_length should be LE than 32" );
   }
   if ( prefix_length == 0 ) {
     routing_table_[0] = { interface_num, next_hop };
