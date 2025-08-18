@@ -99,9 +99,9 @@ private:
   // Datagrams that have been received
   std::queue<InternetDatagram> datagrams_received_ {};
 
-  std::unordered_map<uint32_t, TimeAliveEthernetAddress> ip2ethernet {};
+  std::unordered_map<uint32_t, TimeAliveEthernetAddress> ip2ethernet_ {};
 
-  std::unordered_map<uint32_t, size_t> ARP_requests {};
+  std::unordered_map<uint32_t, size_t> ARP_requests_ {};
 
-  std::vector<UnsendDatagram> datagram2send {};
+  std::vector<UnsendDatagram> datagram2send_ {};
 };

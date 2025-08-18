@@ -34,20 +34,20 @@ NetworkInterface::NetworkInterface( string_view name,
 void NetworkInterface::send_datagram( const InternetDatagram& dgram, const Address& next_hop )
 {
   auto ip_num = next_hop.ipv4_numeric();
-  if ( ip2ethernet.contains( ip_num ) ) {
-    EthernetHeader eaddr { ip2ethernet[ip_num].addr, ethernet_address_, EthernetHeader::TYPE_IPv4 };
+  if ( ip2ethernet_.contains( ip_num ) ) {
+    EthernetHeader eaddr { ip2ethernet_[ip_num].addr, ethernet_address_, EthernetHeader::TYPE_IPv4 };
     EthernetFrame frame { eaddr, serialize( dgram ) };
     transmit( frame );
   } else {
     // queue the IP datagram so it can be sent after the ARP reply is received
-    datagram2send.emplace_back( dgram, ip_num );
+    datagram2send_.emplace_back( dgram, ip_num );
 
     // broadcast an ARP request for the next hop’s Ethernet address
-    if ( ARP_requests.contains( ip_num ) ) {
+    if ( ARP_requests_.contains( ip_num ) ) {
       return;
     }
 
-    ARP_requests[ip_num] = 0;
+    ARP_requests_[ip_num] = 0;
     EthernetHeader eaddr { ETHERNET_BROADCAST, ethernet_address_, EthernetHeader::TYPE_ARP };
     ARPMessage arp;
     arp.opcode = ARPMessage::OPCODE_REQUEST;
@@ -84,17 +84,17 @@ void NetworkInterface::recv_frame( EthernetFrame frame )
     auto s_ip = arp.sender_ip_address;
     auto s_eth = arp.sender_ethernet_address;
 
-    ip2ethernet[s_ip] = { s_eth, 0 };
-    ARP_requests.erase( s_ip );
+    ip2ethernet_[s_ip] = { s_eth, 0 };
+    ARP_requests_.erase( s_ip );
 
-    for ( auto& t : datagram2send ) {
+    for ( auto& t : datagram2send_ ) {
       if ( t.ip_num == s_ip ) {
         EthernetHeader eaddr { s_eth, ethernet_address_, EthernetHeader::TYPE_IPv4 };
         EthernetFrame frame2 { eaddr, serialize( t.dgram ) };
         transmit( frame2 );
       }
     }
-    erase_if( datagram2send, [&]( const auto& t ) { return t.ip_num == s_ip; } );
+    erase_if( datagram2send_, [&]( const auto& t ) { return t.ip_num == s_ip; } );
 
     if ( arp.opcode == ARPMessage::OPCODE_REQUEST ) {
       if ( arp.target_ip_address == ip_address_.ipv4_numeric() ) {
@@ -115,24 +115,24 @@ void NetworkInterface::recv_frame( EthernetFrame frame )
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
 void NetworkInterface::tick( const size_t ms_since_last_tick )
 {
-  for ( auto& [i, j] : ip2ethernet ) {
+  for ( auto& [i, j] : ip2ethernet_ ) {
     j.tick += ms_since_last_tick;
   }
 
-  for ( auto& [i, j] : ARP_requests ) {
+  for ( auto& [i, j] : ARP_requests_ ) {
     j += ms_since_last_tick;
   }
 
-  erase_if( ip2ethernet, []( const auto& t ) {
+  erase_if( ip2ethernet_, []( const auto& t ) {
     // the mapping between the sender’s IP address and Ethernet address for 30 seconds
     return t.second.tick >= 30000;
   } );
 
-  erase_if( ARP_requests, []( const auto& t ) {
+  erase_if( ARP_requests_, []( const auto& t ) {
     // If the network interface already sent an ARP request about the same IP address in the last
     // five seconds, don’t send a second request—just wait for a reply to the first one
     return t.second >= 5000;
   } );
 
-  erase_if( datagram2send, [&]( const auto& t ) { return !ARP_requests.contains( t.ip_num ); } );
+  erase_if( datagram2send_, [&]( const auto& t ) { return !ARP_requests_.contains( t.ip_num ); } );
 }
