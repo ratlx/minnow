@@ -16,15 +16,70 @@ void Router::add_route( const uint32_t route_prefix,
                         const optional<Address> next_hop,
                         const size_t interface_num )
 {
-  cerr << "DEBUG: adding route " << Address::from_ipv4_numeric( route_prefix ).ip() << "/"
-       << static_cast<int>( prefix_length ) << " => " << ( next_hop.has_value() ? next_hop->ip() : "(direct)" )
-       << " on interface " << interface_num << "\n";
-
-  debug( "unimplemented add_route() called" );
+  if ( prefix_length > 32 ) {
+    throw invalid_argument( "prefix_length should be LE than" );
+  }
+  if ( prefix_length == 0 ) {
+    routing_table_[0] = { interface_num, next_hop };
+    return;
+  }
+  auto shft = 32 - prefix_length;
+  uint32_t prefix = route_prefix >> shft;
+  routing_table_[prefix] = { interface_num, next_hop };
+  shift_set_.insert( shft );
 }
 
 // Go through all the interfaces, and route every incoming datagram to its proper outgoing interface.
 void Router::route()
 {
-  debug( "unimplemented route() called" );
+  for ( auto& i : interfaces_ ) {
+    if ( !i ) {
+      continue;
+    }
+
+    auto& recv = i->datagrams_received();
+    while ( !recv.empty() ) {
+      auto d = recv.front();
+      recv.pop();
+
+      // If the TTL was zero already, or hits zero after the decrement, the router should drop the datagram.
+      if ( d.header.ttl <= 1 ) {
+        continue;
+      }
+      --d.header.ttl;
+      d.header.compute_checksum();
+
+      if ( auto m = longest_prefix_match( d.header.dst ) ) {
+        auto& [j, oaddr] = routing_table_[*m];
+        if ( j >= interfaces_.size() || !interfaces_[j] ) {
+          continue;
+        }
+
+        if ( oaddr ) {
+          interfaces_[j]->send_datagram( d, *oaddr );
+        } else {
+          auto addr = Address::from_ipv4_numeric( d.header.dst );
+          interfaces_[j]->send_datagram( d, addr );
+        }
+      }
+    }
+  }
+}
+
+optional<uint32_t> Router::longest_prefix_match( uint32_t ip_num )
+{
+  for ( auto s : shift_set_ ) {
+    auto pre = ip_num >> s;
+    if ( pre == 0 ) {
+      break;
+    }
+    if ( routing_table_.contains( pre ) ) {
+      return pre;
+    }
+  }
+
+  if ( routing_table_.contains( 0 ) ) {
+    return 0;
+  }
+  return nullopt;
 }
