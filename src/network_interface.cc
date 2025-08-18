@@ -121,9 +121,6 @@ void NetworkInterface::tick( const size_t ms_since_last_tick )
 
   for ( auto& [i, j] : ARP_requests ) {
     j += ms_since_last_tick;
-    if ( j >= 5000 ) {
-      erase_if( datagram2send, [=]( const auto& t ) { return t.ip_num == i; } );
-    }
   }
 
   erase_if( ip2ethernet, []( const auto& t ) {
@@ -136,4 +133,6 @@ void NetworkInterface::tick( const size_t ms_since_last_tick )
     // five seconds, don’t send a second request—just wait for a reply to the first one
     return t.second >= 5000;
   } );
+
+  erase_if( datagram2send, [&]( const auto& t ) { return !ARP_requests.contains( t.ip_num ); } );
 }
