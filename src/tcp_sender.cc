@@ -3,6 +3,7 @@
 #include "tcp_config.hh"
 
 #include <algorithm>
+#include <stdexcept>
 
 using namespace std;
 
@@ -22,6 +23,17 @@ uint64_t TCPSender::consecutive_retransmissions() const
   return retransmissions_;
 }
 
+void TCPSender::fast_retransmit( const TransmitFunction& transmit )
+{
+  if ( segments_.empty() ) {
+    throw runtime_error( "nothing can be retransmitted" );
+  }
+  transmit( segments_[0] );
+  ++retransmissions_;
+  current_RTO_ms_ = initial_RTO_ms_;
+  timer_ = 0;
+}
+
 void TCPSender::push( const TransmitFunction& transmit )
 {
   if ( input_.has_error() ) {
@@ -30,6 +42,9 @@ void TCPSender::push( const TransmitFunction& transmit )
   }
 
   auto sz = max<uint64_t>( window_size_, 1 );
+  if ( cc_ ) {
+    sz = min( sz, cc_->get_cwnd() );
+  }
   auto fill = ackno_ ? seqno_.offset( *ackno_ ) : seqno_.offset( isn_ );
   sz = sz > fill ? sz - fill : 0;
   while ( sz > 0 ) {
@@ -74,6 +89,7 @@ void TCPSender::receive( const TCPReceiverMessage& msg )
 {
   if ( msg.RST ) {
     input_.set_error();
+    return;
   }
   auto ackno = msg.ackno;
   if ( ackno == ackno_ || seqno_ == isn_ ) {
@@ -90,6 +106,10 @@ void TCPSender::receive( const TCPReceiverMessage& msg )
   } );
 
   if ( it != segments_.end() ) {
+    // update congestion contral
+    if ( cc_ ) {
+      cc_->new_ack( it - segments_.begin() + 1 );
+    }
     segments_.erase( segments_.begin(), it + 1 );
     // if it is a new ackno, we update the window size.
     window_size_ = msg.window_size;
@@ -117,6 +137,9 @@ void TCPSender::tick( uint64_t ms_since_last_tick, const TransmitFunction& trans
   *timer_ += ms_since_last_tick;
   // retransmission timer has expired
   if ( *timer_ >= current_RTO_ms_ ) {
+    if ( cc_ ) {
+      cc_->timeout();
+    }
     // Retransmit the earliest (lowest sequence number) segment
     transmit( segments_[0] );
 

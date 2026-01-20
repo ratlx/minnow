@@ -3,6 +3,7 @@
 #include "tcp_minnow_socket.hh"
 #include "tun.hh"
 
+#include <chrono>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -161,6 +162,7 @@ int main( int argc, char** argv )
     LossyTCPOverIPv4MinnowSocket tcp_socket( LossyFdAdapter<TCPOverIPv4OverTunFdAdapter>(
       TCPOverIPv4OverTunFdAdapter( TunFD( tun_dev_name == nullptr ? TUN_DFLT : tun_dev_name ) ) ) );
 
+    auto start = chrono::high_resolution_clock::now();
     if ( listen ) {
       tcp_socket.listen_and_accept( c_fsm, c_filt );
     } else {
@@ -169,6 +171,8 @@ int main( int argc, char** argv )
 
     bidirectional_stream_copy( tcp_socket, tcp_socket.peer_address().to_string() );
     tcp_socket.wait_until_closed();
+    auto end = chrono::high_resolution_clock::now();
+    cout << "time usage: " << chrono::duration<double>( end - start ).count() << "s\n";
   } catch ( const exception& e ) {
     cerr << "Exception: " << e.what() << "\n";
     return EXIT_FAILURE;

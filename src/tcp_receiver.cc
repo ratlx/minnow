@@ -18,7 +18,7 @@ void TCPReceiver::receive( TCPSenderMessage message )
   if ( message.SYN ) {
     zero_point_ = message.seqno;
   }
-  if ( zero_point_ ) {
+  if ( zero_point_ && ( !message.payload.empty() || message.FIN ) ) {
     auto checkpoint = reassembler_.first_unassembled_index() + 1;
     auto first_index = message.seqno.unwrap( *zero_point_, checkpoint );
     if ( first_index ) {

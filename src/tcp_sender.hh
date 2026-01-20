@@ -1,10 +1,15 @@
 #pragma once
 
 #include "byte_stream.hh"
+#include "congestion_control.hh"
 #include "tcp_receiver_message.hh"
 #include "tcp_sender_message.hh"
+#include "wrapping_integers.hh"
 
+#include <cstdint>
 #include <functional>
+#include <memory.h>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -12,12 +17,16 @@ class TCPSender
 {
 public:
   /* Construct TCP sender with given default Retransmission Timeout and possible ISN */
-  TCPSender( ByteStream&& input, Wrap32 isn, uint64_t initial_RTO_ms )
+  TCPSender( ByteStream&& input,
+             Wrap32 isn,
+             uint64_t initial_RTO_ms,
+             std::shared_ptr<CongestionControl> cc = nullptr )
     : input_( std::move( input ) )
     , isn_( isn )
     , seqno_( isn )
     , initial_RTO_ms_( initial_RTO_ms )
     , current_RTO_ms_( initial_RTO_ms )
+    , cc_( std::move( cc ) )
   {}
 
   /* Generate an empty TCPSenderMessage */
@@ -28,6 +37,8 @@ public:
 
   /* Type of the `transmit` function that the push and tick methods can use to send messages */
   using TransmitFunction = std::function<void( const TCPSenderMessage& )>;
+
+  void fast_retransmit( const TransmitFunction& transmit );
 
   /* Push bytes from the outbound stream */
   void push( const TransmitFunction& transmit );
@@ -41,6 +52,9 @@ public:
   const Writer& writer() const { return input_.writer(); }
   const Reader& reader() const { return input_.reader(); }
   Writer& writer() { return input_.writer(); }
+
+  uint64_t window_size() const { return window_size_; }
+  const std::optional<Wrap32>& ackno() const { return ackno_; }
 
 private:
   Reader& reader() { return input_.reader(); }
@@ -56,4 +70,6 @@ private:
   std::optional<uint64_t> timer_ { std::nullopt };
   uint64_t retransmissions_ { 0 };
   uint16_t window_size_ { 1 };
+
+  std::shared_ptr<CongestionControl> cc_;
 };

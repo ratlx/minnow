@@ -1,13 +1,17 @@
 #pragma once
 
+#include "congestion_control.hh"
 #include "tcp_config.hh"
 #include "tcp_receiver.hh"
 #include "tcp_receiver_message.hh"
 #include "tcp_segment.hh"
 #include "tcp_sender.hh"
 #include "tcp_sender_message.hh"
+#include "wrapping_integers.hh"
 
+#include <cstdint>
 #include <functional>
+#include <memory>
 #include <optional>
 
 class TCPPeer
@@ -64,6 +68,9 @@ public:
     const auto our_ackno = receiver_.send().ackno;
     need_send_ |= ( our_ackno.has_value() and msg.sender->seqno + 1 == our_ackno.value() );
 
+    // check if retransmission is needed
+    dup_ack_check( msg, transmit );
+
     // Give incoming TCPSenderMessage to receiver.
     receiver_.receive( std::move( msg.sender ) );
 
@@ -87,8 +94,38 @@ public:
   const TCPSender& sender() const { return sender_; }
 
 private:
+  void dup_ack_check( const TCPMessage& msg, const TransmitFunction& transmit )
+  {
+    // no piggy-back
+    if ( msg.sender->sequence_length() > 0 ) {
+      return;
+    }
+    // no window size update
+    if ( msg.receiver->window_size != sender_.window_size() ) {
+      return;
+    }
+    if ( sender_.sequence_numbers_in_flight() == 0 ) {
+      dup_ack_cnt_ = 0;
+      return;
+    }
+
+    const auto& ackno = msg.receiver->ackno;
+    if ( ackno && sender_.ackno() && *ackno == *sender_.ackno() ) {
+      if ( cc_ ) {
+        cc_->duplicate_ack();
+      }
+      if ( ++dup_ack_cnt_ >= 3 ) {
+        sender_.fast_retransmit( make_send( transmit ) );
+      }
+    } else {
+      dup_ack_cnt_ = 1;
+    }
+  }
+
   TCPConfig cfg_;
-  TCPSender sender_ { ByteStream { cfg_.send_capacity }, cfg_.isn, cfg_.rt_timeout };
+  std::shared_ptr<CongestionControl> cc_ { nullptr };
+
+  TCPSender sender_ { ByteStream { cfg_.send_capacity }, cfg_.isn, cfg_.rt_timeout, cc_ };
   TCPReceiver receiver_ { Reassembler { ByteStream { cfg_.recv_capacity } } };
 
   bool need_send_ {};
@@ -102,4 +139,5 @@ private:
   bool linger_after_streams_finish_ { true }; // one peer may need to linger to make sure all closure conditions met
   uint64_t cumulative_time_ {};
   uint64_t time_of_last_receipt_ {};
+  uint8_t dup_ack_cnt_ { 0 };
 };

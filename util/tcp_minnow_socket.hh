@@ -8,6 +8,7 @@
 #include "tuntap_adapter.hh"
 
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <optional>
 #include <thread>
@@ -92,6 +93,12 @@ private:
   bool _outbound_shutdown { false }; //!< Has the owner shut down the outbound data to the TCP connection?
 
   bool _fully_acked { false }; //!< Has the outbound data been fully acknowledged by the peer?
+
+  using TimePoint = std::chrono::high_resolution_clock::time_point;
+
+  TimePoint start_ {};
+
+  TimePoint end_ {};
 };
 
 using TCPOverIPv4MinnowSocket = TCPMinnowSocket<TCPOverIPv4OverTunFdAdapter>;

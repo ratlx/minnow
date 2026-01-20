@@ -2,6 +2,7 @@
 
 #include "exception.hh"
 
+#include <chrono>
 #include <cstddef>
 #include <exception>
 #include <iostream>
@@ -90,6 +91,8 @@ void TCPMinnowSocket<AdaptT>::_initialize_TCP( const TCPConfig& config )
         std::cerr << "DEBUG: minnow outbound stream to " << _datagram_adapter.config().destination.to_string()
                   << " has been fully acknowledged.\n";
         _fully_acked = true;
+        end_ = std::chrono::high_resolution_clock::now();
+        std::cerr << "Total time usage: " << std::chrono::duration<double>( end_ - start_ ) << "s\n";
       }
     },
     [&] { return _tcp->active(); } );
@@ -245,6 +248,7 @@ void TCPMinnowSocket<AdaptT>::connect( const TCPConfig& c_tcp, const FdAdapterCo
   }
 
   _tcp_thread = std::thread( &TCPMinnowSocket::_tcp_main, this );
+  start_ = std::chrono::high_resolution_clock::now();
 }
 
 //! \param[in] c_tcp is the TCPConfig for the TCPConnection
